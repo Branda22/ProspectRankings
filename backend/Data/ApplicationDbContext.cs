@@ -11,6 +11,8 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<Source> Sources => Set<Source>();
+    public DbSet<Prospect> Prospects => Set<Prospect>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -19,6 +21,21 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(e => e.Email).IsUnique();
+        });
+
+        modelBuilder.Entity<Source>(entity =>
+        {
+            entity.HasIndex(e => e.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<Prospect>(entity =>
+        {
+            entity.HasOne(p => p.Source)
+                  .WithMany(s => s.Prospects)
+                  .HasForeignKey(p => p.SourceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(p => new { p.SourceId, p.Rank }).IsUnique();
         });
     }
 }

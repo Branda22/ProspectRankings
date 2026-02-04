@@ -1,5 +1,4 @@
-import { AppShell, Burger, Group, NavLink, Title } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { AppShell, Group, Text, Button, Box } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
 import { logout } from '../store/authSlice';
@@ -9,54 +8,63 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const [opened, { toggle }] = useDisclosure();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/login');
+    navigate('/');
   };
 
   return (
-    <AppShell
-      header={{ height: 60 }}
-      navbar={{
-        width: 250,
-        breakpoint: 'sm',
-        collapsed: { mobile: !opened },
-      }}
-      padding="md"
-    >
-      <AppShell.Header>
+    <AppShell header={{ height: 60 }} padding="md">
+      <AppShell.Header
+        style={{
+          borderBottom: 'none',
+          borderTop: '3px solid var(--mantine-color-blue-6)',
+        }}
+      >
         <Group h="100%" px="md" justify="space-between">
-          <Group>
-            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-            <Title order={3}>ProspectRankings</Title>
+          <Group gap="xs">
+            <Text
+              size="xl"
+              fw={800}
+              variant="gradient"
+              gradient={{ from: 'yellow', to: 'orange', deg: 90 }}
+              style={{ letterSpacing: '0.15em', cursor: 'pointer' }}
+              onClick={() => navigate('/')}
+            >
+              RANKLE
+            </Text>
+            <Box visibleFrom="sm">
+              <Text size="sm" c="dimmed" ml="md">
+                MLB Prospect Rankings
+              </Text>
+            </Box>
           </Group>
           <Group>
-            {user && (
-              <span className="text-sm text-gray-600">
-                {user.firstName || user.email}
-              </span>
+            {isAuthenticated ? (
+              <>
+                <Text size="sm" c="dimmed">
+                  {user?.firstName || user?.email}
+                </Text>
+                <Button variant="subtle" size="xs" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="light"
+                size="xs"
+                onClick={() => navigate('/login')}
+              >
+                Login
+              </Button>
             )}
           </Group>
         </Group>
       </AppShell.Header>
-
-      <AppShell.Navbar p="md">
-        <NavLink
-          label="Home"
-          onClick={() => navigate('/')}
-          active={window.location.pathname === '/'}
-        />
-        <NavLink
-          label="Logout"
-          onClick={handleLogout}
-          className="mt-auto"
-        />
-      </AppShell.Navbar>
 
       <AppShell.Main>{children}</AppShell.Main>
     </AppShell>

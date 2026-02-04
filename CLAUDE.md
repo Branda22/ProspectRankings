@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture
 
 Full-stack web application:
-- **Backend**: ASP.NET Core 8.0 Web API with JWT authentication, EF Core
+- **Backend**: ASP.NET Core 10.0 Web API with JWT authentication, EF Core 10
 - **Frontend**: React 18 + TypeScript + Vite + Mantine UI + Tailwind CSS + Redux Toolkit (PWA)
 - **Database**: PostgreSQL 15
 - **Infrastructure**: Docker & Docker Compose

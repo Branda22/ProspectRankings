@@ -27,7 +27,7 @@ services:
       - ConnectionStrings__DefaultConnection=Host=database;Database=prospectdb;Username=admin;Password=${DB_PASSWORD}
       - JwtSettings__Secret=${JWT_SECRET}
     ports:
-      - "5000:5000"
+      - "5001:5000"
     depends_on:
       database:
         condition: service_healthy
