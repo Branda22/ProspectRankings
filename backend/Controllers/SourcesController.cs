@@ -1,8 +1,7 @@
-using backend.Data;
+using backend.Data.Repositories;
 using backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers;
 
@@ -11,25 +10,25 @@ namespace backend.Controllers;
 [Authorize]
 public class SourcesController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly ISourceRepository _sourceRepository;
 
-    public SourcesController(ApplicationDbContext context)
+    public SourcesController(ISourceRepository sourceRepository)
     {
-        _context = context;
+        _sourceRepository = sourceRepository;
     }
 
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<Source>>> GetAll()
     {
-        return await _context.Sources.OrderBy(s => s.Name).ToListAsync();
+        var sources = await _sourceRepository.GetAllAsync();
+        return Ok(sources);
     }
 
     [HttpPost]
     public async Task<ActionResult<Source>> Create([FromBody] Source source)
     {
-        _context.Sources.Add(source);
-        await _context.SaveChangesAsync();
+        await _sourceRepository.CreateAsync(source);
 
         return CreatedAtAction(nameof(GetAll), new { id = source.Id }, source);
     }

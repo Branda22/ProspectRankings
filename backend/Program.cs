@@ -1,14 +1,24 @@
 using System.Text;
 using backend.Data;
+using backend.Data.Repositories;
 using backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
-// Add DbContext
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Cloud Run sets PORT env var
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://+:{port}");
+
+// Add database connection factory
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not configured");
+builder.Services.AddSingleton<IDbConnectionFactory>(new NpgsqlConnectionFactory(connectionString));
+
+// Add repositories
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IProspectRepository, ProspectRepository>();
+builder.Services.AddScoped<ISourceRepository, SourceRepository>();
 
 // Add services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -40,7 +50,10 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+            ?? ["http://localhost:3000"];
+
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -61,11 +74,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Auto-migrate database
-using (var scope = app.Services.CreateScope())
+// Run database migrations
+try
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
+    DatabaseMigrator.Migrate(connectionString);
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "Database migration failed on startup");
 }
 
 app.Run();

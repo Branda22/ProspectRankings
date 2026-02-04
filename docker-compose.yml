@@ -22,12 +22,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
-      - ASPNETCORE_URLS=http://+:5000
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Host=database;Database=prospectdb;Username=admin;Password=${DB_PASSWORD}
       - JwtSettings__Secret=${JWT_SECRET}
     ports:
-      - "5001:5000"
+      - "5001:8080"
     depends_on:
       database:
         condition: service_healthy
@@ -36,8 +36,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    environment:
+      - BACKEND_URL=http://backend:8080
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d
     ports:
-      - "3000:80"
+      - "3000:8080"
     depends_on:
       - backend
 

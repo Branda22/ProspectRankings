@@ -1,28 +1,27 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using backend.Data;
+using backend.Data.Repositories;
 using backend.Models;
 using backend.Models.DTOs;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace backend.Services;
 
 public class AuthService : IAuthService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IUserRepository _userRepository;
     private readonly IConfiguration _configuration;
 
-    public AuthService(ApplicationDbContext context, IConfiguration configuration)
+    public AuthService(IUserRepository userRepository, IConfiguration configuration)
     {
-        _context = context;
+        _userRepository = userRepository;
         _configuration = configuration;
     }
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
-        if (await _context.Users.AnyAsync(u => u.Email == request.Email))
+        if (await _userRepository.ExistsByEmailAsync(request.Email))
         {
             return null;
         }
@@ -35,8 +34,7 @@ public class AuthService : IAuthService
             LastName = request.LastName
         };
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        await _userRepository.CreateAsync(user);
 
         return new AuthResponse
         {
@@ -49,7 +47,7 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var user = await _userRepository.GetByEmailAsync(request.Email);
 
         if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
