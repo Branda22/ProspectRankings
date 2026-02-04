@@ -11,20 +11,32 @@ namespace backend.Controllers;
 public class ProspectsController : ControllerBase
 {
     private readonly IProspectRepository _prospectRepository;
+<<<<<<< HEAD
     private readonly IRankingRepository _rankingRepository;
 
     public ProspectsController(IProspectRepository prospectRepository, IRankingRepository rankingRepository)
     {
         _prospectRepository = prospectRepository;
         _rankingRepository = rankingRepository;
+=======
+
+    public ProspectsController(IProspectRepository prospectRepository)
+    {
+        _prospectRepository = prospectRepository;
+>>>>>>> 610df4e (fixes deployment script)
     }
 
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<Ranking>>> GetAll()
     {
+<<<<<<< HEAD
         var prospectRankings = await _rankingRepository.GetAllAsync();
         return Ok(prospectRankings);
+=======
+        var prospects = await _prospectRepository.GetAllAsync(sourceId);
+        return Ok(prospects);
+>>>>>>> 610df4e (fixes deployment script)
     }
 
     [HttpGet("{id}")]
@@ -44,6 +56,7 @@ public class ProspectsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<List<Guid>>> Create([FromBody] ProspectListDto prospectList)
     {
+<<<<<<< HEAD
         var list = prospectList.List.Select(p => new Prospect
         {
             PlayerName = p.PlayerName,
@@ -55,6 +68,9 @@ public class ProspectsController : ControllerBase
             Rank = p.Rank
         });
         var ids = await _prospectRepository.BulkCreateAsync(list);
+=======
+        await _prospectRepository.CreateAsync(prospect);
+>>>>>>> 610df4e (fixes deployment script)
 
         return Created("api/prospects", ids);
     }
