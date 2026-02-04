@@ -10,15 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://+:{port}");
 
-// Add database connection factory
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not configured");
-builder.Services.AddSingleton<IDbConnectionFactory>(new NpgsqlConnectionFactory(connectionString));
-
-// Add repositories
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IProspectRepository, ProspectRepository>();
-builder.Services.AddScoped<ISourceRepository, SourceRepository>();
+// Add DbContext
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -74,10 +68,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Run database migrations
+// Auto-migrate database (don't block startup if DB isn't ready yet)
 try
 {
-    DatabaseMigrator.Migrate(connectionString);
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
 }
 catch (Exception ex)
 {
