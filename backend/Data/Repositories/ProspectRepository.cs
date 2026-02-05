@@ -18,78 +18,76 @@ public class ProspectRepository : IProspectRepository
     public async Task<IEnumerable<Prospect>> GetAllAsync(int? sourceId)
     {
         var query = new Query("Prospects")
-            .Join("Sources", "Sources.Id", "Prospects.SourceId")
-            .Select(
-                "Prospects.Id", "Prospects.PlayerName", "Prospects.Team",
-                "Prospects.Position", "Prospects.Age", "Prospects.ETA",
-                "Prospects.Rank", "Prospects.SourceId",
-                "Sources.Id", "Sources.Name")
-            .OrderBy("Prospects.Rank");
-
-        if (sourceId.HasValue)
-        {
-            query = query.Where("Prospects.SourceId", sourceId.Value);
-        }
+            .Select("Id", "PlayerName", "Team", "Position", "Age", "ETA", "Rank", "Source")
+            .OrderBy("Rank");
 
         var compiled = _compiler.Compile(query);
 
         using var connection = _connectionFactory.CreateConnection();
-        return await connection.QueryAsync<Prospect, Source, Prospect>(
-            compiled.Sql,
-            (prospect, source) =>
-            {
-                prospect.Source = source;
-                return prospect;
-            },
-            compiled.NamedBindings,
-            splitOn: "Id");
+        return await connection.QueryAsync<Prospect>(compiled.Sql, compiled.NamedBindings);
     }
 
-    public async Task<Prospect?> GetByIdAsync(int id)
+    public async Task<Prospect?> GetByIdAsync(Guid id)
     {
         var query = new Query("Prospects")
-            .Join("Sources", "Sources.Id", "Prospects.SourceId")
-            .Select(
-                "Prospects.Id", "Prospects.PlayerName", "Prospects.Team",
-                "Prospects.Position", "Prospects.Age", "Prospects.ETA",
-                "Prospects.Rank", "Prospects.SourceId",
-                "Sources.Id", "Sources.Name")
-            .Where("Prospects.Id", id);
+            .Select("Id", "PlayerName", "Team", "Position", "Age", "ETA", "Rank", "Source")
+            .Where("Id", id);
 
         var compiled = _compiler.Compile(query);
 
         using var connection = _connectionFactory.CreateConnection();
-        var results = await connection.QueryAsync<Prospect, Source, Prospect>(
-            compiled.Sql,
-            (prospect, source) =>
-            {
-                prospect.Source = source;
-                return prospect;
-            },
-            compiled.NamedBindings,
-            splitOn: "Id");
-
-        return results.FirstOrDefault();
+        return await connection.QueryFirstOrDefaultAsync<Prospect>(compiled.Sql, compiled.NamedBindings);
     }
 
     public async Task<Prospect> CreateAsync(Prospect prospect)
     {
+        prospect.Id = Guid.NewGuid();
         var query = new Query("Prospects").AsInsert(new
         {
+            prospect.Id,
             prospect.PlayerName,
             prospect.Team,
             prospect.Position,
             prospect.Age,
             prospect.ETA,
             prospect.Rank,
-            prospect.SourceId
+            prospect.Source
         });
         var compiled = _compiler.Compile(query);
-        var sql = compiled.Sql + " RETURNING \"Id\"";
 
         using var connection = _connectionFactory.CreateConnection();
-        prospect.Id = await connection.ExecuteScalarAsync<int>(sql, compiled.NamedBindings);
+        await connection.ExecuteAsync(compiled.Sql, compiled.NamedBindings);
         return prospect;
+    }
+
+    public async Task<List<Guid>> BulkCreateAsync(IEnumerable<Prospect> prospects)
+    {
+        var prospectList = prospects.ToList();
+        var ids = new List<Guid>();
+
+        foreach (var prospect in prospectList)
+        {
+            prospect.Id = Guid.NewGuid();
+            ids.Add(prospect.Id);
+        }
+
+        var query = new Query("Prospects").AsInsert(prospectList.Select(prospect => new
+        {
+            prospect.Id,
+            prospect.PlayerName,
+            prospect.Team,
+            prospect.Position,
+            prospect.Age,
+            prospect.ETA,
+            prospect.Rank,
+            prospect.Source
+        }).ToList());
+
+        var compiled = _compiler.Compile(query);
+
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.ExecuteAsync(compiled.Sql, compiled.NamedBindings);
+        return ids;
     }
 
     public async Task<bool> UpdateAsync(Prospect prospect)
@@ -102,7 +100,7 @@ public class ProspectRepository : IProspectRepository
             prospect.Age,
             prospect.ETA,
             prospect.Rank,
-            prospect.SourceId
+            prospect.Source
         });
         var compiled = _compiler.Compile(query);
 
@@ -111,7 +109,7 @@ public class ProspectRepository : IProspectRepository
         return affected > 0;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(Guid id)
     {
         var query = new Query("Prospects").Where("Id", id).AsDelete();
         var compiled = _compiler.Compile(query);
@@ -121,7 +119,7 @@ public class ProspectRepository : IProspectRepository
         return affected > 0;
     }
 
-    public async Task<bool> ExistsAsync(int id)
+    public async Task<bool> ExistsAsync(Guid id)
     {
         var query = new Query("Prospects").Where("Id", id).AsCount();
         var compiled = _compiler.Compile(query);

@@ -2,7 +2,7 @@ namespace backend.Models;
 
 public class Ranking
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
     public required int Rank { get; set; }
     public required string PlayerName { get; set; }
     public required string Team { get; set; }

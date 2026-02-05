@@ -36,8 +36,10 @@ public class UserRepository : IUserRepository
 
     public async Task<User> CreateAsync(User user)
     {
+        user.Id = Guid.NewGuid();
         var query = new Query("Users").AsInsert(new
         {
+            user.Id,
             user.Email,
             user.PasswordHash,
             user.FirstName,
@@ -46,10 +48,9 @@ public class UserRepository : IUserRepository
             user.UpdatedAt
         });
         var compiled = _compiler.Compile(query);
-        var sql = compiled.Sql + " RETURNING \"Id\"";
 
         using var connection = _connectionFactory.CreateConnection();
-        user.Id = await connection.ExecuteScalarAsync<int>(sql, compiled.NamedBindings);
+        await connection.ExecuteAsync(compiled.Sql, compiled.NamedBindings);
         return user;
     }
 }
