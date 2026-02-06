@@ -56,7 +56,7 @@ public class ProspectsController : ControllerBase
         });
         var ids = await _prospectRepository.BulkCreateAsync(list);
 
-        return CreatedAtAction(nameof(GetById), new { ids = ids }, list);
+        return Created("api/prospects", ids);
     }
 
     [HttpPut("{id}")]

@@ -65,28 +65,29 @@ public class ProspectRepository : IProspectRepository
         var prospectList = prospects.ToList();
         var ids = new List<Guid>();
 
+        using var connection = _connectionFactory.CreateConnection();
+        connection.Open();
+
         foreach (var prospect in prospectList)
         {
             prospect.Id = Guid.NewGuid();
             ids.Add(prospect.Id);
+
+            var query = new Query("Prospects").AsInsert(new
+            {
+                prospect.Id,
+                prospect.PlayerName,
+                prospect.Team,
+                prospect.Position,
+                prospect.Age,
+                prospect.ETA,
+                prospect.Rank,
+                prospect.Source
+            });
+            var compiled = _compiler.Compile(query);
+            await connection.ExecuteAsync(compiled.Sql, compiled.NamedBindings);
         }
 
-        var query = new Query("Prospects").AsInsert(prospectList.Select(prospect => new
-        {
-            prospect.Id,
-            prospect.PlayerName,
-            prospect.Team,
-            prospect.Position,
-            prospect.Age,
-            prospect.ETA,
-            prospect.Rank,
-            prospect.Source
-        }).ToList());
-
-        var compiled = _compiler.Compile(query);
-
-        using var connection = _connectionFactory.CreateConnection();
-        await connection.ExecuteAsync(compiled.Sql, compiled.NamedBindings);
         return ids;
     }
 
