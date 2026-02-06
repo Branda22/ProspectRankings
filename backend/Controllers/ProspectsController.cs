@@ -1,44 +1,37 @@
-using backend.Data;
+using backend.Data.Repositories;
 using backend.Models;
+using backend.Models.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class ProspectsController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IProspectRepository _prospectRepository;
+    private readonly IRankingRepository _rankingRepository;
 
-    public ProspectsController(ApplicationDbContext context)
+    public ProspectsController(IProspectRepository prospectRepository, IRankingRepository rankingRepository)
     {
-        _context = context;
+        _prospectRepository = prospectRepository;
+        _rankingRepository = rankingRepository;
     }
 
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ActionResult<IEnumerable<Prospect>>> GetAll([FromQuery] int? sourceId)
+    public async Task<ActionResult<IEnumerable<Ranking>>> GetAll()
     {
-        var query = _context.Prospects.Include(p => p.Source).AsQueryable();
-
-        if (sourceId.HasValue)
-        {
-            query = query.Where(p => p.SourceId == sourceId.Value);
-        }
-
-        return await query.OrderBy(p => p.Rank).ToListAsync();
+        var prospectRankings = await _rankingRepository.GetAllAsync();
+        return Ok(prospectRankings);
     }
 
     [HttpGet("{id}")]
     [AllowAnonymous]
-    public async Task<ActionResult<Prospect>> GetById(int id)
+    public async Task<ActionResult<Prospect>> GetById(Guid id)
     {
-        var prospect = await _context.Prospects
-            .Include(p => p.Source)
-            .FirstOrDefaultAsync(p => p.Id == id);
+        var prospect = await _prospectRepository.GetByIdAsync(id);
 
         if (prospect == null)
         {
@@ -49,52 +42,48 @@ public class ProspectsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<Prospect>> Create([FromBody] Prospect prospect)
+    public async Task<ActionResult<List<Guid>>> Create([FromBody] ProspectListDto prospectList)
     {
-        _context.Prospects.Add(prospect);
-        await _context.SaveChangesAsync();
+        var list = prospectList.List.Select(p => new Prospect
+        {
+            PlayerName = p.PlayerName,
+            Source = prospectList.Source,
+            Age = p.Age,
+            Position = p.Position,
+            Team = p.Team,
+            ETA = p.ETA,
+            Rank = p.Rank
+        });
+        var ids = await _prospectRepository.BulkCreateAsync(list);
 
-        return CreatedAtAction(nameof(GetById), new { id = prospect.Id }, prospect);
+        return Created("api/prospects", ids);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] Prospect prospect)
+    public async Task<IActionResult> Update(Guid id, [FromBody] Prospect prospect)
     {
         if (id != prospect.Id)
         {
             return BadRequest();
         }
 
-        _context.Entry(prospect).State = EntityState.Modified;
+        if (!await _prospectRepository.ExistsAsync(id))
+        {
+            return NotFound();
+        }
 
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await _context.Prospects.AnyAsync(p => p.Id == id))
-            {
-                return NotFound();
-            }
-            throw;
-        }
+        await _prospectRepository.UpdateAsync(prospect);
 
         return NoContent();
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(Guid id)
     {
-        var prospect = await _context.Prospects.FindAsync(id);
-
-        if (prospect == null)
+        if (!await _prospectRepository.DeleteAsync(id))
         {
             return NotFound();
         }
-
-        _context.Prospects.Remove(prospect);
-        await _context.SaveChangesAsync();
 
         return NoContent();
     }
