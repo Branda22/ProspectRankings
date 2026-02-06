@@ -76,17 +76,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Auto-migrate database (don't block startup if DB isn't ready yet)
+// Run database migrations
 try
 {
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
-}
-catch (Exception ex)
-{
-    var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "Database migration failed on startup");
+    DatabaseMigrator.Migrate(connectionString);
 }
 catch (Exception ex)
 {
