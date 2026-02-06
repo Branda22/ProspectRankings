@@ -21,6 +21,7 @@ builder.Services.AddScoped<IProspectRepository, ProspectRepository>();
 builder.Services.AddScoped<ISourceRepository, SourceRepository>();
 builder.Services.AddScoped<IRankingRepository, RankingRepository>();
 
+
 // Add services
 builder.Services.AddScoped<IAuthService, AuthService>();
 
