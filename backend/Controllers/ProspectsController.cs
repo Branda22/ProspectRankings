@@ -1,6 +1,7 @@
 using backend.Data.Repositories;
 using backend.Models;
 using backend.Models.DTOs;
+using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,11 +13,16 @@ public class ProspectsController : ControllerBase
 {
     private readonly IProspectRepository _prospectRepository;
     private readonly IRankingRepository _rankingRepository;
+    private readonly IRankingService _rankingService;
 
-    public ProspectsController(IProspectRepository prospectRepository, IRankingRepository rankingRepository)
+    public ProspectsController(
+        IProspectRepository prospectRepository,
+        IRankingRepository rankingRepository,
+        IRankingService rankingService)
     {
         _prospectRepository = prospectRepository;
         _rankingRepository = rankingRepository;
+        _rankingService = rankingService;
     }
 
     [HttpGet]
@@ -57,6 +63,13 @@ public class ProspectsController : ControllerBase
         var ids = await _prospectRepository.BulkCreateAsync(list);
 
         return Created("api/prospects", ids);
+    }
+
+    [HttpPost("calculate")]
+    public async Task<IActionResult> CalculateRankings()
+    {
+        await _rankingService.CalculateRankingAsync();
+        return Ok();
     }
 
     [HttpPut("{id}")]

@@ -1,50 +1,39 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../services/api';
 
-export interface Source {
-  id: number;
-  name: string;
-}
-
-export interface Prospect {
-  id: number;
+export interface Ranking {
+  id: string;
+  rank: number;
   playerName: string;
   team: string;
   position: string;
   age: number;
   eta: string | null;
-  rank: number;
-  sourceId: number;
-  source: Source;
+  score: number;
+  volatility: string;
+  consensus: number;
+  median: number | null;
+  sd: number | null;
+  tier: number;
+  sourceCount: number;
 }
 
 interface ProspectsState {
-  prospects: Prospect[];
-  sources: Source[];
+  rankings: Ranking[];
   isLoading: boolean;
   error: string | null;
 }
 
 const initialState: ProspectsState = {
-  prospects: [],
-  sources: [],
+  rankings: [],
   isLoading: false,
   error: null,
 };
 
-export const fetchProspects = createAsyncThunk(
-  'prospects/fetchAll',
-  async (sourceId?: number) => {
-    const params = sourceId ? { sourceId } : {};
-    const response = await api.get<Prospect[]>('/prospects', { params });
-    return response.data;
-  }
-);
-
-export const fetchSources = createAsyncThunk(
-  'prospects/fetchSources',
+export const fetchRankings = createAsyncThunk(
+  'prospects/fetchRankings',
   async () => {
-    const response = await api.get<Source[]>('/sources');
+    const response = await api.get<Ranking[]>('/prospects');
     return response.data;
   }
 );
@@ -55,20 +44,17 @@ const prospectsSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchProspects.pending, (state) => {
+      .addCase(fetchRankings.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(fetchProspects.fulfilled, (state, action) => {
+      .addCase(fetchRankings.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.prospects = action.payload;
+        state.rankings = action.payload;
       })
-      .addCase(fetchProspects.rejected, (state, action) => {
+      .addCase(fetchRankings.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.error.message || 'Failed to fetch prospects';
-      })
-      .addCase(fetchSources.fulfilled, (state, action) => {
-        state.sources = action.payload;
+        state.error = action.error.message || 'Failed to fetch rankings';
       });
   },
 });

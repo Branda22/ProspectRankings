@@ -14,13 +14,36 @@ import {
   Paper,
 } from '@mantine/core';
 import { useAppDispatch, useAppSelector } from '../store';
-import { fetchProspects, fetchSources } from '../store/prospectsSlice';
+import { fetchRankings } from '../store/prospectsSlice';
 
 function getRankBadgeColor(rank: number) {
   if (rank <= 3) return 'yellow';
   if (rank <= 6) return 'gray';
   if (rank <= 10) return 'orange';
   return 'dark';
+}
+
+function getVolatilityColor(volatility: string) {
+  switch (volatility.toLowerCase()) {
+    case 'low':
+      return 'green';
+    case 'moderate':
+      return 'yellow';
+    case 'high':
+      return 'orange';
+    case 'extreme':
+      return 'red';
+    default:
+      return 'gray';
+  }
+}
+
+function getTierColor(tier: number) {
+  if (tier === 0) return 'yellow';
+  if (tier === 1) return 'teal';
+  if (tier === 2) return 'blue';
+  if (tier === 3) return 'indigo';
+  return 'gray';
 }
 
 const POSITIONS = [
@@ -30,44 +53,33 @@ const POSITIONS = [
 
 export default function Home() {
   const dispatch = useAppDispatch();
-  const { prospects, sources, isLoading } = useAppSelector(
+  const { rankings, isLoading } = useAppSelector(
     (state) => state.prospects
   );
 
   const [search, setSearch] = useState('');
   const [positionFilter, setPositionFilter] = useState<string | null>(null);
   const [teamFilter, setTeamFilter] = useState<string | null>(null);
-  const [sourceFilter, setSourceFilter] = useState<string | null>(null);
 
   useEffect(() => {
-    dispatch(fetchSources());
+    dispatch(fetchRankings());
   }, [dispatch]);
 
-  useEffect(() => {
-    const sourceId = sourceFilter ? parseInt(sourceFilter) : undefined;
-    dispatch(fetchProspects(sourceId));
-  }, [dispatch, sourceFilter]);
-
   const teams = useMemo(() => {
-    const unique = [...new Set(prospects.map((p) => p.team))].sort();
+    const unique = [...new Set(rankings.map((r) => r.team))].sort();
     return unique.map((t) => ({ value: t, label: t }));
-  }, [prospects]);
-
-  const sourceOptions = useMemo(
-    () => sources.map((s) => ({ value: String(s.id), label: s.name })),
-    [sources]
-  );
+  }, [rankings]);
 
   const filtered = useMemo(() => {
-    return prospects.filter((p) => {
-      if (search && !p.playerName.toLowerCase().includes(search.toLowerCase())) {
+    return rankings.filter((r) => {
+      if (search && !r.playerName.toLowerCase().includes(search.toLowerCase())) {
         return false;
       }
-      if (positionFilter && p.position !== positionFilter) return false;
-      if (teamFilter && p.team !== teamFilter) return false;
+      if (positionFilter && r.position !== positionFilter) return false;
+      if (teamFilter && r.team !== teamFilter) return false;
       return true;
     });
-  }, [prospects, search, positionFilter, teamFilter]);
+  }, [rankings, search, positionFilter, teamFilter]);
 
   return (
     <Container size="lg" py="md">
@@ -113,14 +125,6 @@ export default function Home() {
               searchable
               style={{ minWidth: 130 }}
             />
-            <Select
-              placeholder="Source"
-              data={sourceOptions}
-              value={sourceFilter}
-              onChange={setSourceFilter}
-              clearable
-              style={{ minWidth: 180 }}
-            />
           </Group>
         </Paper>
 
@@ -133,7 +137,7 @@ export default function Home() {
             <Text c="dimmed">No prospects found</Text>
           </Center>
         ) : (
-          <Table.ScrollContainer minWidth={600}>
+          <Table.ScrollContainer minWidth={800}>
             <Table striped highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
@@ -141,51 +145,77 @@ export default function Home() {
                   <Table.Th>Player</Table.Th>
                   <Table.Th>Pos</Table.Th>
                   <Table.Th>Team</Table.Th>
+                  <Table.Th>Score</Table.Th>
+                  <Table.Th>Tier</Table.Th>
+                  <Table.Th>Volatility</Table.Th>
+                  <Table.Th>Consensus</Table.Th>
                   <Table.Th>Age</Table.Th>
                   <Table.Th>ETA</Table.Th>
-                  <Table.Th>Source</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {filtered.map((p) => (
-                  <Table.Tr key={p.id}>
+                {filtered.map((r) => (
+                  <Table.Tr key={r.id}>
                     <Table.Td>
                       <Badge
-                        color={getRankBadgeColor(p.rank)}
+                        color={getRankBadgeColor(r.rank)}
                         variant="filled"
                         size="sm"
                         radius="sm"
                         w={36}
                       >
-                        {p.rank}
+                        {r.rank}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
                       <Text fw={500} size="sm">
-                        {p.playerName}
+                        {r.playerName}
                       </Text>
                     </Table.Td>
                     <Table.Td>
                       <Badge variant="light" color="blue" size="sm">
-                        {p.position}
+                        {r.position}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm">{p.team}</Text>
+                      <Text size="sm">{r.team}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" fw={600}>
+                        {r.score.toFixed(1)}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge
+                        variant="light"
+                        color={getTierColor(r.tier)}
+                        size="sm"
+                      >
+                        {r.tier === 0 ? 'Elite' : `Tier ${r.tier}`}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge
+                        variant="light"
+                        color={getVolatilityColor(r.volatility)}
+                        size="sm"
+                      >
+                        {r.volatility || '—'}
+                      </Badge>
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" c="dimmed">
-                        {p.age || '—'}
+                        {r.consensus}
                       </Text>
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" c="dimmed">
-                        {p.eta || '—'}
+                        {r.age || '—'}
                       </Text>
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" c="dimmed">
-                        {p.source?.name || '—'}
+                        {r.eta || '—'}
                       </Text>
                     </Table.Td>
                   </Table.Tr>

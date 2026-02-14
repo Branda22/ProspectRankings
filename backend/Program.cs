@@ -24,6 +24,7 @@ builder.Services.AddScoped<IRankingRepository, RankingRepository>();
 
 // Add services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRankingService, RankingService>();
 
 // Add JWT Authentication
 var jwtSecret = builder.Configuration["JwtSettings:Secret"] ??

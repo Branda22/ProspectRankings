@@ -7,4 +7,6 @@ public interface IRankingRepository
 {
     Task<IEnumerable<Ranking>> GetAllAsync();
     Task<Ranking> CreateAsync(Ranking ranking);
+    Task DeleteAllAsync();
+    Task BulkCreateAsync(IEnumerable<Ranking> rankings);
 }
