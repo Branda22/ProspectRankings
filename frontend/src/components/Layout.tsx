@@ -46,6 +46,13 @@ export default function Layout({ children }: LayoutProps) {
           <Group>
             {isAuthenticated ? (
               <>
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  onClick={() => navigate('/admin')}
+                >
+                  Admin
+                </Button>
                 <Text size="sm" c="dimmed">
                   {user?.firstName || user?.email}
                 </Text>
