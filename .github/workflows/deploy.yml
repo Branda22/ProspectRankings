@@ -1,0 +1,112 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGION: ${{ secrets.GCP_REGION }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REPO: rankle
+  DB_INSTANCE: rankle-db
+  DB_NAME: prospectdb
+  DB_USER: admin
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    outputs:
+      backend-url: ${{ steps.get-url.outputs.url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${{ env.REGION }}-docker.pkg.dev" --quiet
+
+      - name: Get Cloud SQL connection name
+        id: cloudsql
+        run: |
+          CONNECTION_NAME=$(gcloud sql instances describe "${{ env.DB_INSTANCE }}" \
+            --project="${{ env.PROJECT_ID }}" --format="value(connectionName)")
+          echo "connection_name=${CONNECTION_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend image
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/backend:${{ github.sha }}"
+          docker build --platform linux/amd64 -t "${IMAGE}" ./backend
+          docker push "${IMAGE}"
+
+      - name: Deploy backend to Cloud Run
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/backend:${{ github.sha }}"
+          CONNECTION_NAME="${{ steps.cloudsql.outputs.connection_name }}"
+
+          gcloud run deploy rankle-api \
+            --image="${IMAGE}" \
+            --platform=managed \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --allow-unauthenticated \
+            --port=8080 \
+            --set-env-vars="ASPNETCORE_ENVIRONMENT=Production" \
+            --set-env-vars="JwtSettings__Secret=${{ secrets.JWT_SECRET }}" \
+            --set-env-vars="ConnectionStrings__DefaultConnection=Host=/cloudsql/${CONNECTION_NAME};Database=${{ env.DB_NAME }};Username=${{ env.DB_USER }};Password=${{ secrets.DB_PASSWORD }}" \
+            --add-cloudsql-instances="${CONNECTION_NAME}" \
+            --min-instances=0 \
+            --max-instances=3 \
+            --memory=512Mi
+
+      - name: Get backend URL
+        id: get-url
+        run: |
+          URL=$(gcloud run services describe rankle-api \
+            --region="${{ env.REGION }}" --project="${{ env.PROJECT_ID }}" \
+            --format="value(status.url)")
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${{ env.REGION }}-docker.pkg.dev" --quiet
+
+      - name: Build and push frontend image
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/frontend:${{ github.sha }}"
+          docker build --platform linux/amd64 -t "${IMAGE}" ./frontend
+          docker push "${IMAGE}"
+
+      - name: Deploy frontend to Cloud Run
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/frontend:${{ github.sha }}"
+
+          gcloud run deploy rankle-web \
+            --image="${IMAGE}" \
+            --platform=managed \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --allow-unauthenticated \
+            --port=8080 \
+            --set-env-vars="BACKEND_URL=${{ needs.deploy-backend.outputs.backend-url }}" \
+            --min-instances=0 \
+            --max-instances=3 \
+            --memory=256Mi
