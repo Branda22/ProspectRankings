@@ -14,7 +14,10 @@ import {
 } from '@mantine/core';
 import { Navigate } from 'react-router-dom';
 import { useAppSelector } from '../store';
-import api from '../services/api';
+import {
+  uploadProspects,
+  calculateRankings,
+} from '../services/prospectsService';
 
 export default function Admin() {
   const { isAuthenticated } = useAppSelector((state) => state.auth);
@@ -55,11 +58,10 @@ export default function Admin() {
     setUploading(true);
     setStatus(null);
     try {
-      const res = await api.post('/prospects', { source: source.trim(), list });
-      const count = Array.isArray(res.data) ? res.data.length : 0;
+      const ids = await uploadProspects(source.trim(), list);
       setStatus({
         type: 'success',
-        message: `Uploaded ${count} prospects from "${source.trim()}"`,
+        message: `Uploaded ${ids.length} prospects from "${source.trim()}"`,
       });
       setJson('');
     } catch (e) {
@@ -76,7 +78,7 @@ export default function Admin() {
     setCalculating(true);
     setStatus(null);
     try {
-      await api.post('/prospects/calculate');
+      await calculateRankings();
       setStatus({
         type: 'success',
         message: 'Rankings calculated successfully',
